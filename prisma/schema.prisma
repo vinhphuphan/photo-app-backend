@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model comments {
+  comment_id        Int        @id @default(autoincrement())
+  user_id           Int
+  photo_id          Int
+  comment_date      DateTime   @db.DateTime(0)
+  content           String     @db.Text
+  parent_comment_id Int?
+  parentComment     comments?  @relation("CommentReplies", fields: [parent_comment_id], references: [comment_id])
+  replies           comments[] @relation("CommentReplies")
+  photos            photos     @relation(fields: [photo_id], references: [photo_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_photo_comment")
+  users             users      @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_comment")
+
+  @@index([photo_id], map: "fk_photo_comment")
+  @@index([user_id], map: "fk_user_comment")
+  @@index([parent_comment_id], map: "fk_comment_replies")
+}
+
+model photos {
+  photo_id          Int            @id @default(autoincrement())
+  title             String         @db.VarChar(255)
+  photo_path        String         @db.VarChar(255)
+  photo_description String?        @db.Text
+  user_id           Int?
+  comments          comments[]
+  users             users?         @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_photo")
+  reactions         reactions[]
+  saved_photos      saved_photos[]
+
+  @@index([user_id], map: "fk_user_photo")
+}
+
+model saved_photos {
+  user_id   Int
+  photo_id  Int
+  save_date DateTime @db.DateTime(0)
+  photos    photos   @relation(fields: [photo_id], references: [photo_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_photo_saved_photo")
+  users     users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_saved_photo")
+
+  @@id([user_id, photo_id])
+  @@index([photo_id], map: "fk_photo_saved_photo")
+}
+
+model followers {
+  following_id   Int
+  followed_id    Int
+  usersFollowed  users @relation("FollowersRelation", fields: [followed_id], references: [user_id])
+  usersFollowing users @relation("FollowingRelation", fields: [following_id], references: [user_id])
+
+  @@id([following_id, followed_id])
+  @@index([following_id], map: "idx_following")
+  @@index([followed_id], map: "idx_followed")
+}
+
+model reactions {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  reactionType String   @db.VarChar(50)
+  createdAt    DateTime @default(now())
+  photo_id     Int
+  photos       photos   @relation(fields: [photo_id], references: [photo_id])
+  users        users    @relation(fields: [user_id], references: [user_id])
+
+  @@index([photo_id], map: "reactions_photo_id_fkey")
+  @@index([user_id], map: "reactions_user_id_fkey")
+}
+
+model users {
+  user_id         Int            @id @default(autoincrement())
+  email           String?        @unique(map: "email") @db.VarChar(255)
+  hashed_password String?        @db.VarChar(255)
+  full_name       String         @db.VarChar(255)
+  birthdate       DateTime?      @db.DateTime(0)
+  avatar          String?        @db.LongText
+  refresh_token   String?        @db.VarChar(255)
+  sub_google_id   String?        @unique(map: "sub_google_id") @db.VarChar(255)
+  introduce       String?        @db.LongText
+  website         String?        @db.VarChar(255)
+  user_name       String?        @unique(map: "user_name_UNIQUE") @db.VarChar(255)
+  follower_count  Int            @default(0)
+  comments        comments[]
+  followers       followers[]    @relation("FollowersRelation")
+  following       followers[]    @relation("FollowingRelation")
+  photos          photos[]
+  reactions       reactions[]
+  saved_photos    saved_photos[]
+
+  @@index([email], map: "idx_email")
+}
